@@ -1,57 +1,45 @@
 lambda-calculus
 ===============
 
-Verbose encoding
-```
-a(x) => [:x]
-a(*XY) => [:*, a(X), a(Y)]
-a(\x.A) => [:x, a(A)]
+Lambda expressions are a class. Their attributes depend on which kind they are, as defined by the following code snippet from LambdaExpression.rb;
+
+```ruby
+case args.length
+when 1
+  @kind = :variable
+  @value = node_value
+when 2
+  @kind = :abstraction
+  @bound_var = node_value
+  @body = child1
+when 3
+  @kind = :application
+  @function = child1
+  @argument = child2
 ```
 
-Brief encoding
-```
-a(x) => :x
-a(*XY) => [:*, a(X), a(Y)]
-a(\x.A) => [:x, a(A)]
-```
+`LambdaExpression.new()` can take a ton of kinds of arguments. Symbols are preferred to strings. The first defines what kind of expression it is, and can be a symbol or string. Second and third arguments can be symbols, strings, or LambdaExpressions. Some valid examples are shown below;
 
-Hash encoding
+This will become a variable;
+```ruby
+LambdaExpression.new(:x)
 ```
-a(x) => :x
-a(*XY) => {:* => [a(X), a(Y)]}
-a(\x.A) => {:x => a(A)}
+These will become abstractions;
+```ruby
+LambdaExpression.new(:x, :x)
+LambdaExpression.new('x', 'x')
+LambdaExpression.new(:x, 'xy')
 ```
-
-
-Examples;
-Prefix notation,
-Verbose encoding,
-Brief encoding,
-Hash encoding
+These will become applications;
+```ruby
+LambdaExpression.new(:*, :x, :y)
+LambdaExpression.new('*', 'x', 'y')
+LambdaExpression.new
 ```
-\x.x
-[:x, [:x]]
-[:x, :x]
-{:x => :x}
-```
-```
-*xy
-[:*, [:x], [:y]]
-[:*, :x, :y]
-{ :* => [:x, :y] }
-```
-```
-xyz => **xyz
-[:* [:* [:x], [:y]], [:z]]
-[:*, [:*, :x, :y], :z]
-{ :* => [ { :* => [:x, :y] }, :z ] }
-```
-```
-*\x.*xy\a.*bb
--
--
-{ :* => [
-  { :x => {:* => [:x, :y]} }, 
-  { :a => {:* => [:b, :b]} }
-] }
+These will be parsed as strings
+```ruby
+LambdaExpression.new('x')
+LambdaExpression.new('xy')
+LambdaExpression.new('(\x.xy)\a.bb')
+LambdaExpression.new('\x.xy')
 ```

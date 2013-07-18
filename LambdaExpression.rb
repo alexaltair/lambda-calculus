@@ -14,90 +14,145 @@ def close_paren_index(string)
   raise "Mismatching parentheses."
 end
 
-# Takes a string like 'ad(asdf)adf(a)(as(asdf)asd)sf()' and returns an array like ['ad', 'asdf', 'adf', 'a', 'as(asdf)asd', 'sf', ''].
-def group_by_parens(string)
-  array = []
-  while string.length > 0
-    if string[0] == '('
-      # ---------------------------
-    else
-      string.index('(') # ---------
-    end
-  end
-  array
-end
-
 class LambdaExpression
 
   # Change the setters so that attributes cannot be changed to make a meaningless lambda expression.
   attr_accessor :kind, :value, :bound_var, :body, :function, :argument
 
   def initialize(*args)
-    node_value, child1, child2 = args
 
-    raise ArgumentError, "The empty string is not a valid lambda expression." if node_value.nil?
-    if child1.nil? && child2.nil?
-      unless node_value == :*
-        @kind = :variable
-        @value = node_value
-      else
-        raise ArgumentError, "Variable cannot be named *; or application requires two arguments."
-      end
-    elsif child2.nil?
-      unless node_value == :*
-        @kind = :abstraction
-        @bound_var = node_value
-        @body = LambdaExpression.new(child1)
-      else
-        raise ArgumentError, "Variable cannot be named *; or application requires two arguments."
-      end
-    else
-      unless node_value != :*
-        unless child1 == :* || child2 == :*
-          @kind = :application
-          @function = LambdaExpression.new(child1)
-          @argument = LambdaExpression.new(child2)
-        else
-          raise ArgumentError, "Variable cannot be named *."
-        end
-      else
-        raise ArgumentError, "Application should be denoted by a *; or too many arguments for an abstraction or variable."
-      end
+    args.compact!
+
+    if args.length == 1 && args[0].is_a?(String)
+      args = LambdaExpression.string_to_lambda_args(args[0])
     end
+
+    if args.length <= 3
+      node_value, child1, child2 = args
+    else raise ArgumentError, "Number of arguments must be 3 or less."
+    end
+
+    if node_value.is_a?(String)
+      node_value.to_sym
+    end
+
+    if node_value.is_a?(Symbol)
+      raise ArgumentError, "Literal variables should be only one character. Passing an entire expression as a string should take no other arguments." unless node_value.length == 1
+      if node_value == :*
+        raise ArgumentError, "Application needs three arguments." unless args.length == 3
+        child1 = LambdaExpression.new(child1) unless child1.is_a?(LambdaExpression)
+        child2 = LambdaExpression.new(child2) unless child2.is_a?(LambdaExpression)
+      elsif args.length == 2
+        child1 = LambdaExpression.new(child1) unless child1.is_a?(LambdaExpression)
+      elsif args.length == 3 then raise ArgumentError, "First argument should be :*, or too many arguments."
+      end # No else here, because we want the remaining cases of args.length == 1 to drop down into the case statement to become :variable LambdaExpressions!
+    else raise ArgumentError, "First argument is not a symbol."
+    end
+
+    # At this point the first argument should be a symbol, and the rest LambdaExpressions.
+  
+    case args.length
+    when 1
+      @kind = :variable
+      @value = node_value
+    when 2
+      @kind = :abstraction
+      @bound_var = node_value
+      @body = child1
+    when 3
+      @kind = :application
+      @function = child1
+      @argument = child2
+    else raise ArgumentError, "Wrong number of arguments. (Should be caught earlier.)"
+    end
+
   end
+
 
   def to_s
     case self.kind
     when :variable then self.value.to_s
     when :abstraction then "\\#{self.bound_var}.#{self.body}"
     when :application
-      if self.argument.kind == :variable
-        "#{self.function}#{self.argument}"
-      else
-        "#{self.function}(#{self.argument})"
+      function_string = "#{self.function}"
+      argument_string = "#{self.argument}"
+      if self.function.kind == :abstraction
+        function_string = "(" + function_string + ")"
       end
+      unless self.argument.kind == :variable
+        argument_string = "(" + argument_string + ")"
+      end
+      return function_string + argument_string
     end
-  end
-
-  def string_to_lambda(string)
-    
   end
 
   def beta_reduction(expression)
   end
 
+  # Doesn't take care of double parens '((a))' or empty parens 'a()'
+  def self.group_by_parens(string)
+    array = []
+    while string.length > 0
+      if string[0] == '('
+        string = string[1..-1]
+        paren = close_paren_index(string)
+        array << string[0...paren]
+        string = string[(paren+1)..-1]
+      elsif string[0] == '\\'
+        array << string
+        string = ''
+      else
+        array << string[0]
+        string = string[1..-1]
+        # This implies that varaibles cannot be longer than one character.
+      end
+    end
+    array
+  end
+
+  def self.string_to_lambda_args(string)
+    array = group_by_parens(string)
+    if array.length == 1
+      string = array[0]
+      if string[0] == '\\'
+        return string[1].to_sym, string[3..-1]
+      else return string.to_sym # Symbols are required to be only one character; this is enforced later in the initializer.
+      end
+    else
+      last = array.pop
+      array.map! { |element| LambdaExpression.new(element) }
+      penultimate = array.inject do |function, next_arg|
+        LambdaExpression.new(:*, function, next_arg)
+      end
+      return :*, penultimate, last
+    end
+  end
+
+  def self.lambda_tester(test)
+    puts   "To string: #{test}"
+    puts   "kind:      #{test.kind}"
+    case test.kind
+    when :variable
+      puts "value:     #{test.value}"
+    when :abstraction
+      puts "bound_var: #{test.bound_var}"
+      puts "body:      #{test.body}"
+    when :application
+      puts "function:  #{test.function}"
+      puts "argument:  #{test.argument}"
+    end
+  end
+
+  def self.lambda_string_tester(string)
+    puts "Test string:      #{string}"
+    puts "Paren grouping:   #{LambdaExpression.group_by_parens(string)}"
+    args = LambdaExpression.string_to_lambda_args(string)
+    arg0, arg1, arg2 = args
+    puts "Lambda arguments: #{args}"
+    thing = LambdaExpression.new(arg0, arg1, arg2)
+    lambda_tester(thing)
+  end
+
 end
 
-
-# test = LambdaExpression.new(:x)              # x
-# test = LambdaExpression.new(:x, :x)          # \x.x
-# test = LambdaExpression.new(:*, :x, :y)      # xy
-# test2 = LambdaExpression.new(:x, test)       # \x.xy
-# test = LambdaExpression.new(:*, test, test2) # xy(\x.xy)
-
-# puts test
-# puts "kind: #{test.kind}"
-# puts "bound_var: #{test.bound_var}"
-# puts "body: #{test.body}"
-# puts "function: #{test.function}"
-# puts "argument: #{test.argument}"
+LambdaExpression.lambda_string_tester('\a.ab')
