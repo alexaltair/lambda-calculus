@@ -50,7 +50,7 @@ class LambdaExpression
     end
 
     # At this point the first argument should be a symbol, and the rest LambdaExpressions.
-  
+
     case args.length
     when 1
       @kind = :variable
@@ -84,9 +84,6 @@ class LambdaExpression
       end
       return function_string + argument_string
     end
-  end
-
-  def beta_reduction(expression)
   end
 
   # Doesn't take care of double parens '((a))' or empty parens 'a()'
@@ -128,18 +125,51 @@ class LambdaExpression
     end
   end
 
-  def self.lambda_tester(test)
-    puts   "To string: #{test}"
-    puts   "kind:      #{test.kind}"
-    case test.kind
+  def beta_reduce
+    unless (self.kind == :application) && (self.function.kind == :abstraction)
+      return self
+    end
+
+    replacement = self.argument
+    bound_variable = self.function.bound_var
+
+    def substitute(replacement, bound_variable)
+      if self.kind == :variable
+        if self.value == bound_variable
+          return replacement
+        else
+          return self
+        end
+      elsif self.kind == :abstraction
+        self.body = self.body.substitute(replacement, bound_variable)
+        return self
+      elsif self.kind == :application
+        self.function = self.function.substitute(replacement, bound_variable)
+        self.argument = self.argument.substitute(replacement, bound_variable)
+        return self
+      else raise ArgumentError, "First argument is not a LambdaExpression or has no .kind."
+      end
+    end
+
+    self.function.body.substitute(replacement, bound_variable)
+  end
+
+  def evaluate(strategy=:lazy)
+    raise "Method not yet written."
+  end
+
+  def lambda_tester
+    puts   "To string: #{self}"
+    puts   "kind:      #{self.kind}"
+    case self.kind
     when :variable
-      puts "value:     #{test.value}"
+      puts "value:     #{self.value}"
     when :abstraction
-      puts "bound_var: #{test.bound_var}"
-      puts "body:      #{test.body}"
+      puts "bound_var: #{self.bound_var}"
+      puts "body:      #{self.body}"
     when :application
-      puts "function:  #{test.function}"
-      puts "argument:  #{test.argument}"
+      puts "function:  #{self.function}"
+      puts "argument:  #{self.argument}"
     end
   end
 
@@ -150,9 +180,19 @@ class LambdaExpression
     arg0, arg1, arg2 = args
     puts "Lambda arguments: #{args}"
     thing = LambdaExpression.new(arg0, arg1, arg2)
-    lambda_tester(thing)
+    thing.lambda_tester
+  end
+
+  # Runs a block on every leaf in the tree.
+  def each_leaf!
+    raise 'Method not yet written.'
+
+    self.each do |leaf|
+      yield(leaf)
+    end
   end
 
 end
 
-LambdaExpression.lambda_string_tester('\a.ab')
+# test = LambdaExpression.new('(\x.x\y.xy)\a.a')
+# p test.beta_reduce

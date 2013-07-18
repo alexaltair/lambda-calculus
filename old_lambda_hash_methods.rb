@@ -60,7 +60,6 @@ end
 # p prefix_string_to_tree('**xxy')
 
 
-
 # Does the work of beta reduction, but requires the parts be specified.
 def substitute(expression, symbol, replacement)
   raise "Type error: second argument not a symbol." if !symbol.is_a?(Symbol)
@@ -70,7 +69,7 @@ def substitute(expression, symbol, replacement)
     else
       return expression
     end
-  elsif expression.is_a?(Hash)    
+  elsif expression.is_a?(Hash)
     key = expression.keys[0]
     value = expression.values[0]
     if key == :*
@@ -137,6 +136,7 @@ end
 
 
 # Takes a string or char array in prefix notation and turns it into infix notation.
+# Fails to correctly parenthesize left abstractions; (\x.xy)\a.bb
 def tree_to_classical(tree)
   if tree.is_a?(Symbol)
     return tree.to_s
@@ -156,5 +156,5 @@ end
 
 # Runs a block on every leaf in the tree.
 def each_leaf(tree)
-  
+
 end
