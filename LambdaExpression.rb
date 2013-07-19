@@ -125,15 +125,36 @@ class LambdaExpression
     end
   end
 
-  def beta_reduce
-    unless (self.kind == :application) && (self.function.kind == :abstraction)
-      return self
+  # I stole this from the iternet, but understand how it works and tested it.
+  def deep_clone
+    return @deep_cloning_obj if @deep_cloning
+    @deep_cloning_obj = clone
+    @deep_cloning_obj.instance_variables.each do |var|
+      val = @deep_cloning_obj.instance_variable_get(var)
+      begin
+        @deep_cloning = true
+        val = val.deep_clone
+      rescue TypeError, NoMethodError
+        next
+      ensure
+        @deep_cloning = false
+      end
+      @deep_cloning_obj.instance_variable_set(var, val)
     end
+    deep_cloning_obj = @deep_cloning_obj
+    @deep_cloning_obj = nil
+    deep_cloning_obj
+  end
 
-    replacement = self.argument
-    bound_variable = self.function.bound_var
+  def beta_reduce
+    copy = self.deep_clone
+    unless (copy.kind == :application) && (copy.function.kind == :abstraction)
+      return copy
+    end
+    replacement = copy.argument
+    bound_variable = copy.function.bound_var
 
-    def substitute(replacement, bound_variable)
+    def substitute(bound_variable, replacement)
       if self.kind == :variable
         if self.value == bound_variable
           return replacement
@@ -141,17 +162,17 @@ class LambdaExpression
           return self
         end
       elsif self.kind == :abstraction
-        self.body = self.body.substitute(replacement, bound_variable)
+        self.body = self.body.substitute(bound_variable, replacement)
         return self
       elsif self.kind == :application
-        self.function = self.function.substitute(replacement, bound_variable)
-        self.argument = self.argument.substitute(replacement, bound_variable)
+        self.function = self.function.substitute(bound_variable, replacement)
+        self.argument = self.argument.substitute(bound_variable, replacement)
         return self
       else raise ArgumentError, "First argument is not a LambdaExpression or has no .kind."
       end
     end
 
-    self.function.body.substitute(replacement, bound_variable)
+    copy.function.body.substitute(bound_variable, replacement)
   end
 
   def evaluate(strategy=:lazy)
@@ -194,5 +215,7 @@ class LambdaExpression
 
 end
 
-# test = LambdaExpression.new('(\x.x\y.xy)\a.a')
-# p test.beta_reduce
+test = LambdaExpression.new('(\x.yx)\a.bb')
+p test
+p test.beta_reduce
+p test
