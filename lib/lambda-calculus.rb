@@ -1,12 +1,18 @@
-# Finds the matching close parent. Assumes that the opening paren is NOT part of the string; assumes 'blah)' rather than '(blah)'.
-def close_paren_index(string)
+# Takes a string and find the index of the matching close paren to the open paren specified. Default open paren index is the beginning of the string.
+def close_paren_index(string, open_paren_index = 0)
+  if open_paren_index == 0
+    raise ArgumentError "First character not an open paren." unless string[open_paren_index] == '('
+  else
+    raise ArgumentError "Given index not an open paren." unless string[open_paren_index] == '('
+  end
   array = string.split('')
   depth = 1
-  index = 0
+  start = open_paren_index + 1
+  array.shift(start)
   array.each_with_index do |char, index|
     if char == ')'
       depth -= 1
-      return index if depth == 0
+      return index + start if depth == 0
     elsif char == '('
       depth += 1
     end
@@ -21,8 +27,11 @@ class LambdaExpression
 
   def initialize(*args)
 
+    # The first half of this deals with all possible types of arguments that could be given.
+
     args.compact!
 
+    # If the expression is initialized in natural mode, as a written-out string, the initializer passes that string to .string_to_lambda_args to turn it into the native arguments.
     if args.length == 1 && args[0].is_a?(String)
       args = LambdaExpression.string_to_lambda_args(args[0])
     end
@@ -91,9 +100,8 @@ class LambdaExpression
     array = []
     while string.length > 0
       if string[0] == '('
-        string = string[1..-1]
         paren = close_paren_index(string)
-        array << string[0...paren]
+        array << string[1...paren]
         string = string[(paren+1)..-1]
       elsif string[0] == '\\'
         array << string
@@ -146,6 +154,7 @@ class LambdaExpression
     deep_cloning_obj
   end
 
+  # This method does beta reduction only at the top level. Fuller lambda experession evaluation is done by evaluate.
   def beta_reduce
     copy = self.deep_clone
     unless (copy.kind == :application) && (copy.function.kind == :abstraction)
@@ -154,6 +163,7 @@ class LambdaExpression
     replacement = copy.argument
     bound_variable = copy.function.bound_var
 
+    # This method modifies self, which doesn't matter while it's inside beta_reduce, because a deep copy is made first.
     def substitute(bound_variable, replacement)
       if self.kind == :variable
         if self.value == bound_variable
@@ -179,6 +189,7 @@ class LambdaExpression
     raise "Method not yet written."
   end
 
+  # This method helps me test LambdaExpression objects.
   def lambda_tester
     puts   "To string: #{self}"
     puts   "kind:      #{self.kind}"
@@ -194,6 +205,7 @@ class LambdaExpression
     end
   end
 
+  # This method helps me test LambdaExpression objects created from strings.
   def self.lambda_string_tester(string)
     puts "Test string:      #{string}"
     puts "Paren grouping:   #{LambdaExpression.group_by_parens(string)}"
@@ -213,9 +225,13 @@ class LambdaExpression
     end
   end
 
+  # Returns a random LambdaExpression
+  def self.random
+    raise "Method not yet written."
+  end
+
 end
 
-test = LambdaExpression.new('(\x.yx)\a.bb')
-p test
-p test.beta_reduce
-p test
+# LambdaExpression.lambda_string_tester('(\x.yx)\a.bb')
+# p test.beta_reduce
+# p test
