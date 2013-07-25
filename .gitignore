@@ -1,0 +1,6 @@
+.bundle
+.DS_Store
+Gemfile.lock
+*.gem
+
+wont_pass_spec.rb

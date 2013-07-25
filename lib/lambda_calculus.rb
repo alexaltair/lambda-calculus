@@ -2,8 +2,7 @@
 def close_paren_index(string, open_paren_index = 0)
   if open_paren_index == 0
     raise ArgumentError "First character not an open paren." unless string[open_paren_index] == '('
-  else
-    raise ArgumentError "Given index not an open paren." unless string[open_paren_index] == '('
+  else raise ArgumentError "Given index not an open paren." unless string[open_paren_index] == '('
   end
   array = string.split('')
   depth = 1
@@ -26,40 +25,11 @@ class LambdaExpression
   attr_accessor :kind, :value, :bound_var, :body, :function, :argument
 
   def initialize(*args)
-
-    # The first half of this deals with all possible types of arguments that could be given.
-
-    args.compact!
-
-    # If the expression is initialized in natural mode, as a written-out string, the initializer passes that string to .string_to_lambda_args to turn it into the native arguments.
-    if args.length == 1 && args[0].is_a?(String)
-      args = LambdaExpression.string_to_lambda_args(args[0])
-    end
-
-    if args.length <= 3
-      node_value, child1, child2 = args
-    else raise ArgumentError, "Number of arguments must be 3 or less."
-    end
-
-    if node_value.is_a?(String)
-      node_value.to_sym
-    end
-
-    if node_value.is_a?(Symbol)
-      raise ArgumentError, "Literal variables should be only one character. Passing an entire expression as a string should take no other arguments." unless node_value.length == 1
-      if node_value == :*
-        raise ArgumentError, "Application needs three arguments." unless args.length == 3
-        child1 = LambdaExpression.new(child1) unless child1.is_a?(LambdaExpression)
-        child2 = LambdaExpression.new(child2) unless child2.is_a?(LambdaExpression)
-      elsif args.length == 2
-        child1 = LambdaExpression.new(child1) unless child1.is_a?(LambdaExpression)
-      elsif args.length == 3 then raise ArgumentError, "First argument should be :*, or too many arguments."
-      end # No else here, because we want the remaining cases of args.length == 1 to drop down into the case statement to become :variable LambdaExpressions!
-    else raise ArgumentError, "First argument is not a symbol."
-    end
+    # This deals with all possible types of arguments that could be given.
+    args = sanitize_args(*args)
+    node_value, child1, child2 = args
 
     # At this point the first argument should be a symbol, and the rest LambdaExpressions.
-
     case args.length
     when 1
       @kind = :variable
@@ -77,21 +47,54 @@ class LambdaExpression
 
   end
 
+  def sanitize_args(*args)
+    args.compact!
 
-  def to_s
-    case self.kind
-    when :variable then self.value.to_s
-    when :abstraction then "\\#{self.bound_var}.#{self.body}"
-    when :application
-      function_string = "#{self.function}"
-      argument_string = "#{self.argument}"
-      if self.function.kind == :abstraction
-        function_string = "(" + function_string + ")"
+    # If the expression is initialized in natural mode, as a written-out string, the sanitizer passes that string to .string_to_lambda_args to turn it into the native arguments.
+    if args.length == 1 && args[0].is_a?(String)
+      args = LambdaExpression.string_to_lambda_args(args[0])
+    end
+
+    if args.length <= 3
+      node_value, child1, child2 = args
+    else raise ArgumentError, "Number of arguments must be 3 or less."
+    end
+
+    if node_value.is_a?(String)
+      node_value = node_value.to_sym
+    end
+
+    if node_value.is_a?(Symbol)
+      raise ArgumentError, "Literal variables should be only one character. Passing an entire expression as a string should take no other arguments." unless node_value.length == 1
+      if node_value == :*
+        raise ArgumentError, "Application needs three arguments." unless args.length == 3
+        child1 = LambdaExpression.new(child1) unless child1.is_a?(LambdaExpression)
+        child2 = LambdaExpression.new(child2) unless child2.is_a?(LambdaExpression)
+      elsif args.length == 2
+        child1 = LambdaExpression.new(child1) unless child1.is_a?(LambdaExpression)
+      elsif args.length == 3 then raise ArgumentError, "First argument should be :*, or too many arguments."
+      end # No else here, because we want the remaining cases of args.length == 1 to drop down into the case statement to become :variable LambdaExpressions!
+    else raise ArgumentError, "First argument is not a symbol."
+    end
+
+    return *[node_value, child1, child2].compact
+  end
+
+  def self.string_to_lambda_args(string)
+    array = group_by_parens(string)
+    if array.length == 1
+      string = array[0]
+      if string[0] == '\\'
+        return string[1].to_sym, string[3..-1]
+      else return string.to_sym # Symbols are required to be only one character; this is enforced later in the initializer.
       end
-      unless self.argument.kind == :variable
-        argument_string = "(" + argument_string + ")"
+    else
+      last = array.pop
+      array.map! { |element| LambdaExpression.new(element) }
+      penultimate = array.inject do |function, next_arg|
+        LambdaExpression.new(:*, function, next_arg)
       end
-      return function_string + argument_string
+      return :*, penultimate, last
     end
   end
 
@@ -115,21 +118,21 @@ class LambdaExpression
     array
   end
 
-  def self.string_to_lambda_args(string)
-    array = group_by_parens(string)
-    if array.length == 1
-      string = array[0]
-      if string[0] == '\\'
-        return string[1].to_sym, string[3..-1]
-      else return string.to_sym # Symbols are required to be only one character; this is enforced later in the initializer.
+  def to_s
+    case self.instance_variable_get(:@kind)
+    when :variable then self.value.to_s
+    when :abstraction then "\\#{self.bound_var}.#{self.body}"
+    when :application
+      function_string = "#{self.function}"
+      argument_string = "#{self.argument}"
+      if self.function.kind == :abstraction
+        function_string = "(" + function_string + ")"
       end
-    else
-      last = array.pop
-      array.map! { |element| LambdaExpression.new(element) }
-      penultimate = array.inject do |function, next_arg|
-        LambdaExpression.new(:*, function, next_arg)
+      unless self.argument.kind == :variable
+        argument_string = "(" + argument_string + ")"
       end
-      return :*, penultimate, last
+      return function_string + argument_string
+    else raise "Lambda expression has no kind."
     end
   end
 
@@ -154,12 +157,33 @@ class LambdaExpression
     deep_cloning_obj
   end
 
+  # Deep equality; tests whether LambdaExpressions are the same down to the value of the instance variables.
+  def ===(other)
+    return true if self == other
+    if self.kind == other.kind
+      case self.kind
+      when :variable
+        return self.value == other.value
+      when :abstraction
+        return (self.bound_var == other.bound_var &&
+                self.body     === other.body)
+      when :application
+        return (self.function === other.function &&
+                self.argument === other.argument)
+      end
+    end
+    return false
+  end
+
+  def alpha_equal?(other)
+  end
+
   # This method does beta reduction only at the top level. Fuller lambda experession evaluation is done by evaluate.
   def beta_reduce
-    copy = self.deep_clone
-    unless (copy.kind == :application) && (copy.function.kind == :abstraction)
-      return copy
+    unless (self.kind == :application) && (self.function.kind == :abstraction)
+      return self
     end
+    copy = self.deep_clone
     replacement = copy.argument
     bound_variable = copy.function.bound_var
 
@@ -185,23 +209,24 @@ class LambdaExpression
     copy.function.body.substitute(bound_variable, replacement)
   end
 
-  def evaluate(strategy=:lazy)
+  def evaluate(strategy=:eager)
     raise "Method not yet written."
+    # Eager/strict, pre-order, in-order, post-order/applicative-order, breadth-first, unstoppable hybrid
   end
 
   # This method helps me test LambdaExpression objects.
   def lambda_tester
-    puts   "To string: #{self}"
-    puts   "kind:      #{self.kind}"
+    puts   "To string:  #{self}"
+    puts   "kind:       #{self.kind}"
     case self.kind
     when :variable
-      puts "value:     #{self.value}"
+      puts "value:      #{self.value}"
     when :abstraction
-      puts "bound_var: #{self.bound_var}"
-      puts "body:      #{self.body}"
+      puts "bound_var:  #{self.bound_var}"
+      puts "body:       #{self.body}"
     when :application
-      puts "function:  #{self.function}"
-      puts "argument:  #{self.argument}"
+      puts "function:   #{self.function}"
+      puts "argument:   #{self.argument}"
     end
   end
 
@@ -210,15 +235,14 @@ class LambdaExpression
     puts "Test string:      #{string}"
     puts "Paren grouping:   #{LambdaExpression.group_by_parens(string)}"
     args = LambdaExpression.string_to_lambda_args(string)
-    arg0, arg1, arg2 = args
     puts "Lambda arguments: #{args}"
-    thing = LambdaExpression.new(arg0, arg1, arg2)
+    thing = LambdaExpression.new(*args)
     thing.lambda_tester
   end
 
   # Runs a block on every leaf in the tree.
   def each_leaf!
-    raise 'Method not yet written.'
+    raise "Method not yet written."
 
     self.each do |leaf|
       yield(leaf)
@@ -231,7 +255,3 @@ class LambdaExpression
   end
 
 end
-
-# LambdaExpression.lambda_string_tester('(\x.yx)\a.bb')
-# p test.beta_reduce
-# p test
