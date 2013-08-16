@@ -62,6 +62,21 @@ describe LambdaExpression do
 
   end
 
+  describe 'evaluate' do
+    it "should return the same object for expressions that can't be evaluated"
+
+    # I have no idea how to correctly implement this.
+    # it "should return with any strategy for expressions with finite reduction steps" do
+    #   test_cases = ['x', 'xy'] # Come up with complicated examples.
+    #   test_cases.each do |string|
+    #     expression = LambdaExpression.new(string)
+    #     LambdaExpression.strategies.each do |strategy|
+    #       expression.evaluate(strategy).should # ... should what?
+    #     end
+    #   end
+    # end
+  end
+
   describe '===' do
 
     it "should return true when same up to same variable names, false otherwise" do
@@ -98,7 +113,20 @@ describe LambdaExpression do
     # it "should be transitive" do
     # end
 
+    # pending "write a pending message"
+
   end
+
+  describe 'deep_clone' do
+    it "should copy complex expressions which are alpha_equal and === but not =="
+    it "should leave the self untouched"
+  end
+
+  describe 'alpha_equal?' do
+    it "should return true for expressions with the same structure but different variable names"
+  end
+
+
 
   # Can I write a function, has_lambda_properties?, to use in this file?
   # Edge cases
