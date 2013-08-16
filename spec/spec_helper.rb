@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'bundler/setup'
 
-require './lib/lambda_calculus.rb'
+require './lib/lambda-calculus.rb'
 
 # RSpec.configure do |config|
 #   config.color_enabled = true

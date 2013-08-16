@@ -1,4 +1,4 @@
-# Takes a string and find the index of the matching close paren to the open paren specified. Default open paren index is the beginning of the string.
+# Takes a string and finds the index of the matching close paren to the open paren specified.
 def close_paren_index(string, open_paren_index = 0)
   if open_paren_index == 0
     raise ArgumentError "First character not an open paren." unless string[open_paren_index] == '('
@@ -21,8 +21,9 @@ end
 
 class LambdaExpression
 
-  # Change the setters so that attributes cannot be changed to make a meaningless lambda expression.
+  # ----- Change the setters so that attributes cannot be changed to make a meaningless lambda expression.
   attr_accessor :kind, :value, :bound_var, :body, :function, :argument
+  # ----- Make a class variable or something, which stores all the strategies; LambdaExpression.strategies = [:eager, :lazy, :depth_first ... ]
 
   def initialize(*args)
     # This deals with all possible types of arguments that could be given.
@@ -137,6 +138,7 @@ class LambdaExpression
   end
 
   # I stole this from the iternet, but understand how it works and tested it.
+  # ----- Change this so that it doesn't have any new instance variables.
   def deep_clone
     return @deep_cloning_obj if @deep_cloning
     @deep_cloning_obj = clone
@@ -175,10 +177,11 @@ class LambdaExpression
     return false
   end
 
+  # After de Bruijn indices are implemented, this will be the same as deep equality.
   def alpha_equal?(other)
   end
 
-  # This method does beta reduction only at the top level. Fuller lambda experession evaluation is done by evaluate.
+  # This method does beta reduction only at the top level. Fuller lambda expression evaluation is done by #evaluate.
   def beta_reduce
     unless (self.kind == :application) && (self.function.kind == :abstraction)
       return self
@@ -202,16 +205,36 @@ class LambdaExpression
         self.function = self.function.substitute(bound_variable, replacement)
         self.argument = self.argument.substitute(bound_variable, replacement)
         return self
-      else raise ArgumentError, "First argument is not a LambdaExpression or has no .kind."
+      else raise ArgumentError, "First argument is not a LambdaExpression or has no kind."
       end
     end
 
     copy.function.body.substitute(bound_variable, replacement)
   end
 
-  def evaluate(strategy=:eager)
-    raise "Method not yet written."
+  def evaluate(strategy=:depth_first)
+    case strategy
+    when :depth_first then self.evaluate_depth_first
+    else raise ArgumentError, "Argument #{strategy} is not an evaluation strategy."
+    end
     # Eager/strict, pre-order, in-order, post-order/applicative-order, breadth-first, unstoppable hybrid
+  end
+
+  def evaluate_depth_first
+    expression = self.deep_clone
+    case expression.kind
+    when :variable then return expression
+    when :abstraction then return LambdaExpression.new( expression.bound_var, expression.body.evaluate_depth_first )
+    when :application
+      expression.function = expression.function.evaluate_depth_first
+      if expression.function.kind == :abstraction
+        return expression.beta_reduce.evaluate_depth_first
+      else
+        expression.argument = expression.argument.evaluate_depth_first
+        return expression
+      end
+    else raise ArgumentError, "This lambda expression has a wrong kind."
+    end
   end
 
   # This method helps me test LambdaExpression objects.
@@ -247,6 +270,10 @@ class LambdaExpression
     self.each do |leaf|
       yield(leaf)
     end
+  end
+
+  def evaluates_to?(other, strategy=:depth_first)
+    self.evaluate(strategy) === other
   end
 
   # Returns a random LambdaExpression
