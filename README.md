@@ -1,4 +1,4 @@
-Lambda calculus engine
+Lambda calculus engine [![Gem Version](https://badge.fury.io/rb/lambda-calculus.png)](http://badge.fury.io/rb/lambda-calculus)
 ======================
 
 Lambda expressions are a class. Their attributes depend on which kind they are, as defined by the following code snippet from lambda-calculus.rb;
