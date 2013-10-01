@@ -1,6 +1,17 @@
 Lambda calculus engine [![Gem Version](https://badge.fury.io/rb/lambda-calculus.png)](http://badge.fury.io/rb/lambda-calculus)
 ======================
 
+Ever wanted to evaluate lambda expressions from the command line? Well now you can!  
+1. Download this gem; `gem install lambda-calculus`.  
+2. Open up pry or irb and type `require 'lambda-calculus'`.  
+3. Declare a lambda expression; `my_exp = LambdaExpression.new('(\x.xy)(\a.a)')`  
+4. Evaluate or beta reduce!  
+```
+> my_exp.beta_reduce
+=> (\a.a)y
+> my_exp.evaluate
+=> y
+```
 Lambda expressions are a class. Their attributes depend on which kind they are, as defined by the following code snippet from lambda-calculus.rb;
 
 ```ruby
