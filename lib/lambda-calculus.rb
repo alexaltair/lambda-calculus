@@ -189,27 +189,26 @@ class LambdaExpression
     copy = self.deep_clone
     replacement = copy.argument
     bound_variable = copy.function.bound_var
-
-    # This method modifies self, which doesn't matter while it's inside beta_reduce, because a deep copy is made first.
-    def substitute(bound_variable, replacement)
-      if self.kind == :variable
-        if self.value == bound_variable
-          return replacement
-        else
-          return self
-        end
-      elsif self.kind == :abstraction
-        self.body = self.body.substitute(bound_variable, replacement)
-        return self
-      elsif self.kind == :application
-        self.function = self.function.substitute(bound_variable, replacement)
-        self.argument = self.argument.substitute(bound_variable, replacement)
-        return self
-      else raise ArgumentError, "First argument is not a LambdaExpression or has no kind."
-      end
-    end
-
     copy.function.body.substitute(bound_variable, replacement)
+  end
+
+  # This method modifies self, which doesn't matter while it's inside beta_reduce, because a deep copy is made first.
+  def substitute(bound_variable, replacement)
+    if self.kind == :variable
+      if self.value == bound_variable
+        return replacement
+      else
+        return self
+      end
+    elsif self.kind == :abstraction
+      self.body = self.body.substitute(bound_variable, replacement)
+      return self
+    elsif self.kind == :application
+      self.function = self.function.substitute(bound_variable, replacement)
+      self.argument = self.argument.substitute(bound_variable, replacement)
+      return self
+    else raise ArgumentError, "First argument is not a LambdaExpression or has no kind."
+    end
   end
 
   def evaluate(strategy=:depth_first)
